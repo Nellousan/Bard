@@ -1,2 +1,2 @@
 # Bard
-Web radio streamer
+Web radio streamer (work in progress...)
