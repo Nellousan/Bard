@@ -1,6 +1,7 @@
-use rtsp_types::{Method, Request};
+use rtsp_types::headers::{CSEQ, TRANSPORT};
+use rtsp_types::{Method, Request, Response, StatusCode, Version};
 use std::sync::Arc;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
@@ -48,14 +49,45 @@ pub async fn handle_message(client: ClientRef, data: &Vec<u8>) -> () {
         rtsp_types::Message::parse(&data).expect("Failed to parse rtsp");
 
     if let rtsp_types::Message::Request(request) = message {
-        println!("message type: {:?}", request);
         match request.method() {
             Method::Setup => handle_setup(client, request).await,
+            Method::Play => handle_play(client, request).await,
             _ => println!("unhandled request method: {:?}", request.method()),
         }
     }
 }
 
 pub async fn handle_setup(client: ClientRef, request: Request<Vec<u8>>) -> () {
-    println!("got setup")
+    let response = Response::builder(Version::V1_0, StatusCode::Ok)
+        .header(CSEQ, request.header(&CSEQ).unwrap().to_owned())
+        .header(TRANSPORT, request.header(&TRANSPORT).unwrap().to_owned())
+        .empty();
+
+    let mut data = Vec::new();
+    response.write(&mut data).expect("Lmao");
+
+    client
+        .lock()
+        .await
+        .tcp_socket
+        .write(data.as_slice())
+        .await
+        .expect("fuck");
+}
+
+pub async fn handle_play(client: ClientRef, request: Request<Vec<u8>>) -> () {
+    let response = Response::builder(Version::V1_0, StatusCode::Ok)
+        .header(CSEQ, request.header(&CSEQ).unwrap().to_owned())
+        .empty();
+
+    let mut data = Vec::new();
+    response.write(&mut data).expect("Lmao");
+
+    client
+        .lock()
+        .await
+        .tcp_socket
+        .write(data.as_slice())
+        .await
+        .expect("fuck");
 }
